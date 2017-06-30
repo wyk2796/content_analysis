@@ -8,22 +8,24 @@ from pre_deal_data import tf_idf
 from fpgrowth import computer_freqitem as cf
 from fpgrowth import fp_growth_00 as fg0
 import sys
-import tools
-
 
 def run():
-    wl = initial_dict()
-    # bad_data = initial(params.content_text_path)
-    # content_data = data_deal.list_from_frame_content_train(bad_data, 'content')
+    wl = ws.initial_dict(params.dict_path, params.stop_word_path)
+    bad_data = initial_pandas(params.content_bad_path)
+    content_data = data_deal.list_from_frame_content_train(bad_data, 'content')
     # print(len(content_data))
-    # con_words = [wl.word_cut_with_sign(w) for w in content_data]
+    con_words = [wl.word_cut_with_sign(w) for w in content_data]
     tfidf = initial_tf_idf(wl)
+    fp_bad = computer_fp_data(con_words)
+    write(params.fp_words, fp_bad)
+    predict_content(bad_data, fp_bad, tfidf, wl)
 
 
 def computer_fp_data(data):
     bad_fp = []
-    for (itemset, support) in fg0.find_frequent_itemsets(data, 100, True):
+    for (itemset, support) in fg0.find_frequent_itemsets(data, 50, True):
         bad_fp.append(itemset)
+    return bad_fp
 
 
 def predict_content(data, fp_data, tfidf, wl):
@@ -34,7 +36,7 @@ def predict_content(data, fp_data, tfidf, wl):
         # sw_dict = {}
         for sen in com.split(','):
             ww = wl.word_cut_with_sign(sen)
-            idf_map = tfidf.computer_tf_idf(ww, 2, 11)
+            idf_map = tfidf.computer_tf_idf(ww, 2)
             simple_word = set(ww)
             # for sw in simple_word:
             #     sw_dict[sw] = idf_map.get(sw, 0) + 0
@@ -58,51 +60,32 @@ def predict_content(data, fp_data, tfidf, wl):
 
                 if nsw != '':
                     com_fp.append(''.join(nsw))
-                o1.write(com + ':' + str(ww)+':' + str(com_fp) + ':' + str(idf_map) + '\n')
+                o1.write('content:%s, seg_word:%s, fp_word: %s, idf_set:%s\n' % (com, str(ww), str(com_fp), str(idf_map)))
         result[com] = com_fp
     write('E:\\temp\\result.txt', result)
 
-def initial_tf_idf(wl):
-    tfidf = tf_idf.TfIdf()
-    # tfidf.load_idf_from_file(params.tf_idf_model)
-    # idf_len = len(tfidf.idf_list)
-    # print(idf_len)
-    if True:
-        d = initial(params.content_orginal_path)
-        print('computer words frequent')
-        tools.dict_write_to_file(params.dict_file, data_deal.statistic_word_count(d, wl))
 
-        con_words = [wl.word_cut_with_sign(w) for w in data_deal.list_from_frame_content(d, 'content')]
+def initial_tf_idf(wl, train=False):
+    tfidf = tf_idf.TfIdf()
+    tfidf.load_local_idf(params.tf_idf_model)
+    idf_len = len(tfidf.idf_list)
+    print(idf_len)
+    if idf_len > 0 and train:
+        # d = initial_text(params.content_orginal_path)
+        # data = list(map(lambda x: x[12], d))
+        # print('computer words frequent')
+        # word_fp = data_deal.statistic_word_count_text(data, wl)
+        # print('stastic finish')
+        # ssw = sorted(word_fp.items(), key=lambda x: x[1], reverse=True)
+        # print('order finish')
+        # tools.tuple_list_write_to_file(params.dict_file, ssw)
+
+        # con_words = [wl.word_cut_with_sign(w) for w in data]
         """create dict """
         print('computer idf')
-        tfidf.computer_idf(con_words)
+        tfidf.load_local_words_frp(params.statistic_words, 5310917).computer_idf()
         tfidf.idf_write_to_file(params.tf_idf_model)
     return tfidf
-
-
-def run_fp():
-
-    swlist = initial_dict()
-
-    good_data = initial(params.content_good_path)
-    bad_data = initial(params.content_bad_path)
-    middle_data = initial(params.content_middle_path)
-
-    # good_count = data_deal.statistic_word_count(good_data, swlist)
-    # bad_count = data_deal.statistic_word_count(bad_data, swlist)
-    # middle_count = data_deal.statistic_word_count(middle_data, swlist)
-    #
-    # write(params.middle_table_path + '\\' + 'good_word_count.txt', good_count)
-    # write(params.middle_table_path + '\\' + 'bad_word_count.txt', bad_count)
-    # write(params.middle_table_path + '\\' + 'middle_word_count.txt', middle_count)
-
-    good_fp = cf.computer_apri(data_deal.framer_to_apriori(good_data, swlist), 9000)
-    bad_fp = cf.computer_apri(data_deal.framer_to_apriori(bad_data, swlist), 100)
-    middle_fp = cf.computer_apri(data_deal.framer_to_apriori(middle_data, swlist), 100)
-
-    write(params.middle_table_path + '\\' + 'good_fp.txt', good_fp)
-    write(params.middle_table_path + '\\' + 'bad_fp.txt', bad_fp)
-    write(params.middle_table_path + '\\' + 'middle_fp.txt', middle_fp)
 
 
 def write(path, wmap):
@@ -115,18 +98,20 @@ def write(path, wmap):
     print('finish write %s' % path)
 
 
-def initial_dict():
-    wl = ws.WordLibrary()
-    sys.setrecursionlimit(1000000)
-    ws.load_user_dict(params.dict_path)
-    wl.load_stop_word(params.stop_word_path)
-    return wl
-
-
-def initial(path):
+def initial_pandas(path):
     d = DataLoad()
-    return d.load(path, params.table_name, '#')
+    return d.load_by_pandas(path, params.table_name, '#')
 
-if __name__ == '__main__':
-    run()
+
+def initial_text(path):
+    d = DataLoad()
+    return d.load_text(path, '#')
+
+
+#if __name__ == '__main__':
+    # create_rnn_train()
+    # pre_anta_data()
+    # per_step()
+    #create_word2vec()
+    # run()
 

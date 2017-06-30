@@ -2,56 +2,9 @@
 
 import jieba as jb
 import jieba.posseg as jp
-import os
+import file_operation as fo
+import sys
 import tools
-
-
-def operation_single_file(path, func, *args, **kwds):
-    try:
-        print('operation file path: %s' % path)
-        func(path, *args, **kwds)
-    except Exception as e:
-        print('operation file %s encounter an error:%s' % (path, e))
-
-
-def operation_file(path, func, *args, **kwds):
-    if os.path.isdir(path):
-        [operation_single_file(path + '\\' + f_name, func, *args, **kwds)
-         for f_name in os.listdir(path) if f_name.endswith('.dic')]
-    else:
-        operation_single_file(path, func, *args, **kwds)
-
-
-def load_user_dict(path):
-
-    """
-    加载path下面的字典文件
-    :param path: 字典文件夹
-    :return:
-    """
-    print('loading dict word')
-    operation_file(path, lambda x: jb.load_userdict(x))
-    print('loaded dict word')
-
-
-def load_stop_word(path):
-
-    """
-    加载停留词，
-    :param path:停留词文件路径
-    :param kwds: 存储停留词参数
-    :return:
-    """
-
-    def _load_stop_word(p, **kwds):
-        [kwds['sw'].add(word.strip()) for word in open(p, encoding='utf-8', mode='r').readlines()]
-
-    words = set()
-    words.add(' ')
-    print('loading stop word')
-    operation_file(path, lambda x: _load_stop_word(x, sw=words))
-    print('loaded stop word')
-    return words
 
 
 def _cut(line):
@@ -61,18 +14,6 @@ def _cut(line):
     except Exception as e:
         print('cut line %s encounter an error %s' % (line, e))
     return words
-
-
-# def sign_word(line, swlist=None):
-#     words = {}
-#
-#     def add(w, sign_map):
-#         sign_map[w.word] = w.falg
-#     if swlist is not None and len(swlist) > 0:
-#         [add(word, words) for word in jb.cut(line) if word not in swlist]
-#     else:
-#         [add(word, words) for word in jb.cut(line)]
-#     return words
 
 
 def computer_word_fp(content):
@@ -112,7 +53,7 @@ class WordLibrary(object):
 
         self.swlist.add(' ')
         print('loading stop word')
-        operation_file(path, lambda x: _load_stop_word(x, sw=self.swlist))
+        fo.operation_file(path, lambda x: _load_stop_word(x, sw=self.swlist), lambda x: x.endswith('.dic'))
         print('loaded stop word')
 
     def add_stop_word(self, word):
@@ -122,6 +63,9 @@ class WordLibrary(object):
     def add_alternate_word(self, o_word, n_word):
         if o_word.strip != '' and n_word.strip != '':
             self.alternate_word[o_word] = n_word
+
+    def load_user_dict(self, path):
+        fo.operation_file(path, lambda x: jb.load_userdict(x), lambda x: x.endswith('.dic'))
 
     def load_alternate_word(self, path):
 
@@ -134,7 +78,7 @@ class WordLibrary(object):
                     alword[al[0]] = al[1].strip()
 
         print('loading alternate word')
-        operation_file(path, lambda x: _load_alte_word(x, al=self.alternate_word))
+        fo.operation_file(path, lambda x: _load_alte_word(x, al=self.alternate_word), lambda x: x.endswith('.dic'))
         print('loading alternate word')
 
     def is_in_stop_list(self, word):
@@ -153,7 +97,12 @@ class WordLibrary(object):
         return words
 
 
-
+def initial_dict(dict_path, stop_word_path):
+    wl = WordLibrary()
+    sys.setrecursionlimit(1000000)
+    wl.load_user_dict(dict_path)
+    wl.load_stop_word(stop_word_path)
+    return wl
 
 if __name__ == '__main__':
     import static_params as sp
