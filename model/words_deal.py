@@ -8,8 +8,11 @@ class WordsContent(object):
 
     def __init__(self, max_volume):
         self.data = None
-        self.unknown = 'UNK'
-        self.end_char = 'END'
+        self.unknown_char = '_UNK'
+        self.end_char = '_END'
+        self.start_char = '_GO'
+        self.number_char = '_NUM'
+        self.interval_char = '_INTERVAL'
         self.vocabulary_size = max_volume
         self.words_ids = dict()
         self.ids_words = dict()
@@ -24,7 +27,9 @@ class WordsContent(object):
         return len(self.label_words_ids)
 
     def create_data_content(self, input_data):
-        count = [[self.unknown, -1], [self.end_char, -1]]
+        self.words_ids.clear()
+        self.ids_words.clear()
+        count = [[self.unknown_char, -1], [self.end_char, -1], [self.start_char, -1], [self.interval_char, -1]]
         total_word_dict = pd.statistic_word_from_line(input_data)
         count.extend(collections.Counter(total_word_dict).most_common(self.vocabulary_size - 2))
         for word, frp in count:
@@ -44,13 +49,13 @@ class WordsContent(object):
             data.append(line_data)
 
         self.data = data
-        self.words_frp[self.unknown] = unk_count
+        self.words_frp[self.unknown_char] = unk_count
         self.ids_words = dict(zip(self.words_ids.values(), self.words_ids.keys()))
 
     def create_label_content(self, input_data):
         self.label_words_ids.clear()
         self.label_ids_words.clear()
-        count = [[self.unknown, -1], [self.end_char, -1]]
+        count = [[self.unknown_char, -1], [self.end_char, -1], [self.start_char, -1], [self.interval_char, -1]]
         total_word_dict = pd.statistic_word_from_line(input_data)
         count.extend(collections.Counter(total_word_dict).most_common())
         for word, frp in count:
@@ -120,6 +125,45 @@ class WordsContent(object):
             long_data.extend(line)
         self.data = long_data
         return self
+
+    def is_number_data(self, word):
+        try:
+            float(word)
+            return True
+        except Exception:
+            return False
+
+    def _conver_num_data(self, word):
+        if self.is_number_data(word):
+            return self.number_char
+        else:
+            return word
+
+    def conver_file_to_IDfile(self, path_in, path_out):
+        in_data = open(path_in, encoding='utf-8', mode='r')
+        out_data = open(path_out, encoding='utf-8', mode='w')
+        for line in in_data.readlines():
+            words = line.strip().split(',')
+            new_line = self.conver_sen_pre(words)
+            out_data.write(','.join(new_line) + '\n')
+
+    def conver_sen_pre(self, sen):
+        new_line = []
+        for w in sen:
+            if w != '':
+                w = self._conver_num_data(w)
+                new_line.append(w)
+        new_line.append(self.end_char)
+        return new_line
+
+    def conver_sentence_generate_pre(self, sen):
+        new_line = [self.start_char]
+        for w in sen:
+            if w != '':
+                w = self._conver_num_data(w)
+                new_line.append(w)
+        new_line.append(self.end_char)
+        return new_line
 
 
 def create_content_data(data, vocabulary_size, save_path=None):

@@ -127,6 +127,12 @@ def pre_anta_segword():
                 out.write(line_w + '\n')
 
 
+
+
+
+
+
+
 if __name__ == '__main__':
     pre_xtep()
     pre_anta_segword()

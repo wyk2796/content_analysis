@@ -57,7 +57,6 @@ class TrainData(object):
                         print('line %s format error %s' % ('\t'.join(content), e))
         return self
 
-
     def add_predict_data_from_file(self, path):
         with open(path, encoding='utf-8', mode='r') as i_stream:
             [self.predict_data.append(line.strip()) for line in i_stream.readlines()]
@@ -77,20 +76,14 @@ class TrainData(object):
         for step, j in enumerate(indexes):
             (k, v) = data[j]
             lv = v.content_label
-            # if (np.random.random() * 100) // 2 == 0:
-            #     lvl = lv.split(',')
-            #     if len(lvl) > 1:
-            #         lvl.reverse()
-            #         lv = ','.join(lvl)
-            lv = lv.replace(',', wc.end_char)
+            lv = lv.replace(',', wc.interval_char)
             content = np.zeros(step_num, dtype=np.int32)
             labeled = np.zeros(step_num, dtype=np.int32)
             content_words = self.word_content.words_to_ids(self.word_seg.word_cut_with_sign(k))
-            #label_words = self.word_content.label_words_to_ids(self.word_seg.word_cut_with_sign(lv))
-            label_words = self.word_content.label_words_to_ids(self.word_seg.word_cut_with_sign(lv))
-
-            # if (np.random.random() * 100) // 2 == 0:
-            #     content_words.reverse()
+            ll_w = [wc.start_char]
+            ll_w.extend(self.word_seg.word_cut_with_sign(lv))
+            ll_w.append(wc.end_char)
+            label_words = self.word_content.label_words_to_ids(ll_w)
             if len(content_words) < 35:
                 for k in range(len(content_words)):
                     content[k] = content_words[k]
@@ -175,12 +168,15 @@ class TrainData(object):
         labels = []
         for (key, labels) in data:
             lv = labels.content_label
-            lv = lv.replace(',', wc.end_char)
+            lv = lv.replace(',', wc.interval_char)
             content = np.zeros(step_num, dtype=np.int32)
             labeled = np.zeros(step_num, dtype=np.int32)
-            content_words = self.word_content.words_to_ids(self.word_seg.word_cut_with_sign(k))
-            # label_words = self.word_content.label_words_to_ids(self.word_seg.word_cut_with_sign(lv))
-            label_words = self.word_content.label_words_to_ids(self.word_seg.word_cut_with_sign(lv))
+            content_words = self.word_content.words_to_ids(self.word_seg.word_cut_with_sign(key))
+            ll_w = [wc.start_char]
+            ll_w.extend(self.word_seg.word_cut_with_sign(lv))
+            ll_w.append(wc.end_char)
+            ll_w = [wc.start_char]
+            label_words = self.word_content.label_words_to_ids(ll_w)
 
             if len(content_words) < 35:
                 for k in range(len(content_words)):
@@ -198,13 +194,13 @@ class TrainData(object):
         feature = []
         labels = []
         data = list(self.valid_map.items())
-        for (k, v) in data:
+        for (key, v) in data:
             le = self._generate_one_hot(v.emotion, 3)
             li = self._generate_one_hot(v.item_des, 3)
             ls = self._generate_one_hot(v.service_des, 3)
             ll = self._generate_one_hot(v.logistics_des, 3)
             content = np.zeros(step_num, dtype=np.int32)
-            content_words = self.word_content.words_to_ids(self.word_seg.word_cut_with_sign(k))
+            content_words = self.word_content.words_to_ids(self.word_seg.word_cut_with_sign(key))
             for k in range(len(content_words)):
                 content[k] = content_words[k]
             feature.append(content)
@@ -247,8 +243,8 @@ if __name__ == '__main__':
     wc = wd.create_content_from_file(params.xtep_words_ids, params.vocabulary_size)
     wc.load__label_word_index(params.label_words_ids)
     train_data = TrainData(ws_dict, wc)
-    train_data.add_content_from_file(params.train_data_o_good)
-    train_data.add_content_from_file(params.train_data_o_bad)
+    train_data.add_train_data_from_file(params.train_data_o_good)
+    train_data.add_train_data_from_file(params.train_data_o_bad)
     # label_data = [ws_dict.word_cut_with_sign(line) for line in train_data.get_content_label()]
     # wc.create_label_content(label_data)
     # wc.save_label_word_index(params.label_words_ids)

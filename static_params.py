@@ -1,11 +1,11 @@
 # coding:utf-8
 
 
-dict_path = 'E:\词库\contentdict\\'
-dict_file = 'E:\词库\contentdict\dict.txt'
+dict_path = 'E:\MyWork\gitpython\content_analysis\data\dict\contentdict\\'
+dict_file = 'E:\MyWork\gitpython\content_analysis\data\dict\contentdict\dict.txt'
 
-stop_word_path = 'E:\词库\stop_word\\'
-alternate_word_path = 'E:\词库\\alternate_words'
+stop_word_path = 'E:\MyWork\gitpython\content_analysis\data\dict\stop_word\\'
+alternate_word_path = 'E:\MyWork\gitpython\content_analysis\data\dict\\alternate_words'
 
 content_path = 'E:\\temp\\transform_data\\part-00001'
 
@@ -35,7 +35,7 @@ middle_table_path = 'E:\\temp\\middle_table'
 #--------------------------------------------------
 
 model = 'E:\\temp\model\\'
-train_data_dir = 'E:\\temp\\train_data\\'
+train_data_dir = 'E:\MyWork\gitpython\content_analysis\data\\train_data'
 
 vocabulary_size = 20000
 embedding_size = 500
