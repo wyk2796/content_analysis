@@ -16,7 +16,7 @@ def create_predict_RNNModel(wc, outpath):
     conf_t = conf.MediumConfig()
     conf_t.vocabulary_size = wc.vocabulary_size
     conf_t.hidden_size = params.embedding_size
-    conf_t.num_steps = 30
+    conf_t.num_steps = 35
     conf_t.max_max_epoch = 100
     conf_t.max_epoch = 90
     conf_t.learning_rate = 0.1
@@ -24,16 +24,30 @@ def create_predict_RNNModel(wc, outpath):
     conf_t.output_size = wc.label_size()
     conf_t.embedding_init = rt.get_embedding_from_word2vec(params.xtep_words2vec_model)
 
-
     predict_conf = conf.MediumConfig()
     predict_conf.vocabulary_size = wc.vocabulary_size
     predict_conf.batch_size = 1
-    predict_conf.num_steps = 30
+    predict_conf.num_steps = 35
     predict_conf.keep_prob = 1
     predict_conf.output_size = wc.label_size()
     predict_conf.hidden_size = params.embedding_size
-    predict_conf.embedding_init = tr.get_embedding_from_word2vec(params.xtep_words2vec_model)
+    predict_conf.embedding_init = conf_t.embedding_init
     graph = tf.Graph()
+
+    initial_c1 = 'Predict/Model/MultiRNNCellZeroState/BasicLSTMCellZeroState/zeros'
+    initial_h1 = 'Predict/Model/MultiRNNCellZeroState/BasicLSTMCellZeroState/zeros_1'
+    initial_c2 = 'Predict/Model/MultiRNNCellZeroState/BasicLSTMCellZeroState_1/zeros'
+    initial_h2 = 'Predict/Model/MultiRNNCellZeroState/BasicLSTMCellZeroState_1/zeros_1'
+    predict_out = 'Predict/Model/predict_out'
+    finial_state_c1 = 'Predict/Model/RNN/multi_rnn_cell_29/cell_0/basic_lstm_cell/add_1'
+    finial_state_h1 = 'Predict/Model/RNN/multi_rnn_cell_29/cell_0/basic_lstm_cell/mul_2'
+    finial_state_c2 = 'Predict/Model/RNN/multi_rnn_cell_29/cell_1/basic_lstm_cell/add_1'
+    finial_state_h2 = 'Predict/Model/RNN/multi_rnn_cell_29/cell_1/basic_lstm_cell/mul_2'
+    outlist = [initial_c1, initial_h1,
+               initial_c2, initial_h2,
+               finial_state_c1, finial_state_c2,
+               finial_state_h1, finial_state_h2,
+               predict_out]
 
     with graph.as_default():
         initializer = tf.random_uniform_initializer(-predict_conf.init_scale,
@@ -55,7 +69,7 @@ def create_predict_RNNModel(wc, outpath):
         output_graph_def = tf.graph_util.convert_variables_to_constants(
             session,
             input_graph_def,
-            [predict_model.predict.name.split(':')[0]]
+            outlist
         )
 
         with tf.gfile.GFile(outpath, 'wb') as f:

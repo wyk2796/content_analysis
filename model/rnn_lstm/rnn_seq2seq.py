@@ -4,7 +4,8 @@ import tensorflow as tf
 import time
 import numpy as np
 
-class RNNModel(object):
+
+class RNNSeq2Seq(object):
 
     def __init__(self, config, operation):
         self.config = config
@@ -21,6 +22,8 @@ class RNNModel(object):
         self._lr = None
         self._new_lr = None
         self.predict = None
+        self.states_seq2seq = None
+        self.first_run = True
         self.forward_computer()
         if operation == 'Train':
             self.computer_cost()
@@ -67,14 +70,34 @@ class RNNModel(object):
                     tf.get_variable_scope().reuse_variables()
                 (cell_output, state) = self.cell(inputs[:, time_step, :], state)
                 outputs.append(cell_output)
-        output = tf.reshape(tf.stack(axis=1, values=outputs), [-1, self.config.hidden_size])
+        # output = tf.reshape(tf.stack(axis=1, values=outputs), [-1, self.config.hidden_size])
 
-        # outdata = self.layer(output, 1)
+        outdata = self.decode(outputs)
+        self.logits = tf.reshape(tf.stack(axis=1, values=outdata), [-1, self.config.output_size])
+        # print(output.shape)
 
-        softmax_w = tf.get_variable("softmax_w", [self.config.hidden_size, self.config.output_size], dtype=tf.float32)
-        softmax_b = tf.get_variable("softmax_b", [self.config.output_size], dtype=tf.float32)
-        self.logits = tf.matmul(output, softmax_w) + softmax_b
+        # softmax_w = tf.get_variable("softmax_w", [self.config.hidden_size, self.config.output_size], dtype=tf.float32)
+        # softmax_b = tf.get_variable("softmax_b", [self.config.output_size], dtype=tf.float32)
+        # self.logits = tf.matmul(outdata, softmax_w) + softmax_b
         self._final_state = state
+        self.first_run = False
+
+    def decode(self, output):
+        with tf.variable_scope('decode_seq2seq'):
+            cell = tf.contrib.rnn.MultiRNNCell([self.lstm_cell() for _ in range(self.config.num_layers)],
+                                               state_is_tuple=True)
+            if self.first_run:
+                self.states_seq2seq = cell.zero_state(self.config.batch_size, dtype=tf.float32)
+            attention_states = tf.get_variable("attention_states", [1,
+                                                                    self.config.num_steps,
+                                                                    self.config.output_size])
+        (output_seq2seq, states_seq2seq) = tf.contrib.legacy_seq2seq.attention_decoder(output,
+                                                                                       self.states_seq2seq,
+                                                                                       attention_states,
+                                                                                       cell,
+                                                                                       output_size=self.config.output_size)
+        self.states_seq2seq = states_seq2seq
+        return output_seq2seq
 
     def layer(self, output, i):
         name = 'layer_%d' % i
@@ -132,16 +155,15 @@ class RNNModel(object):
             "predict": self.predict,
         }
         count = [0, 0]
-        count_s = [0, 0]
         for step, (train_input, train_label) in enumerate(train_data.train_data_content(self.config.batch_size,
                                                                                         self.config.num_steps)):
             feed = {self.input_placeholder: train_input,
-                    self.labels_placeholder: train_label}
-                    # self._initial_state: state}
+                    self.labels_placeholder: train_label,
+                    self._initial_state: state}
             vals = session.run(
                 fetch, feed_dict=feed)
             costs += vals['cost']
-            # state = vals['final_state']
+            state = vals['final_state']
             iters += self.config.num_steps
             if step % (epoch_size // 10) == 0:
                 print("%.3f perplexity: %.3f speed: %.0f wps" %
@@ -157,13 +179,7 @@ class RNNModel(object):
                     count[0] += 1
                 else:
                     count[1] += 1
-                if self.is_equal(y_predict, labelw):
-                    count_s[0] += 1
-                else:
-                    count_s[1] += 1
-
         print(count[0] + count[1], count[0] / (count[0] + count[1]), count[1] / (count[0] + count[1]))
-        print(count[0] + count[1], count_s[0] / (count[0] + count[1]), count_s[1] / (count[0] + count[1]))
         return np.exp(costs / iters)
 
     def run_predict(self, session, predict_data, wc):
@@ -221,16 +237,6 @@ class RNNModel(object):
         a = np.log(a + 1e-5) / temperature
         a = np.exp(a) / np.sum(np.exp(a))
         return np.argmax(np.random.multinomial(1, a, 1))
-
-    def is_equal(self, predict, label):
-        count_p = 0
-        count_l = 0
-        for p in predict:
-            count_p += p
-        for l in label:
-            count_l += l
-        return count_p == count_l
-
 
 
 

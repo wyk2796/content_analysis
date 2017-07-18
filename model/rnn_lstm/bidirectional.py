@@ -31,7 +31,6 @@ class BidirectionalRecurrentN(object):
         self.input_placeholder = tf.placeholder(dtype=tf.int32,
                                                 shape=[self.batch_size, self.num_steps], name='text_input')
 
-
     def set_batch_size(self, batch_size):
         self.batch_size = batch_size
 
@@ -180,7 +179,3 @@ class BidirectionalRecurrentN(object):
         for (name, predict) in self.predict_op.items():
             fetch[name] = predict
         return session.run(fetch, {self.input_placeholder: input_data})
-
-
-
-

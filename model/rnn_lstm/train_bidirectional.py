@@ -12,7 +12,7 @@ def train_bidirectional(td, sava_path, re_Train = False):
     batch_size = 20
     hidden_size = params.embedding_size
     keep_prob = 0.5
-    num_steps = 30
+    num_steps = 35
     embed_init = rt.get_embedding_from_word2vec(params.xtep_words2vec_model)
     classify = {'emotion': 3, 'item_des': 3, 'service_des': 3, 'logistics_des': 3}
 
@@ -24,7 +24,7 @@ def train_bidirectional(td, sava_path, re_Train = False):
         train_model.set_batch_size(batch_size)
         train_model.set_hidden_size(hidden_size)
         train_model.set_keep_prob(keep_prob)
-        train_model.set_learning_rate(1e-5)
+        train_model.set_learning_rate(1e-3)
         train_model.set_num_steps(num_steps)
         train_model.get_train_graph(embed_init, params.vocabulary_size, initializer, classify)
 
@@ -46,7 +46,6 @@ def train_bidirectional(td, sava_path, re_Train = False):
         if re_Train:
             checkpoint = tf.train.get_checkpoint_state(sava_path)
             sv.saver.restore(session, checkpoint.model_checkpoint_path)
-
 
         for i in range(50):
             accuracy = dict()

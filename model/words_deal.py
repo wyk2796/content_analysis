@@ -48,6 +48,8 @@ class WordsContent(object):
         self.ids_words = dict(zip(self.words_ids.values(), self.words_ids.keys()))
 
     def create_label_content(self, input_data):
+        self.label_words_ids.clear()
+        self.label_ids_words.clear()
         count = [[self.unknown, -1], [self.end_char, -1]]
         total_word_dict = pd.statistic_word_from_line(input_data)
         count.extend(collections.Counter(total_word_dict).most_common())

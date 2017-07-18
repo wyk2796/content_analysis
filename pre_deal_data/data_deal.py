@@ -2,7 +2,7 @@
 
 import static_params as params
 from data_load import DataLoad
-import pre_deal_data.separate_data as sd
+from pre_deal_data import separate_data as sd
 import wordseg as ws
 
 
@@ -69,7 +69,7 @@ def pre_seg_words(words):
     return word_output
 
 
-def per_step():
+def pre_xtep():
     d = DataLoad()
     good_data = d.load_text(params.xtep_good_content_path)
     bad_data = d.load_text(params.xtep_bad_middle_content_path)
@@ -126,3 +126,7 @@ def pre_anta_segword():
                 line_w = ','.join(words)
                 out.write(line_w + '\n')
 
+
+if __name__ == '__main__':
+    pre_xtep()
+    pre_anta_segword()

@@ -33,4 +33,3 @@ def pre_line(line):
         return False
     else:
         return True
-

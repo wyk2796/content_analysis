@@ -7,8 +7,10 @@ import tensorflow as tf
 from model.rnn_lstm import rnn_model
 from model.rnn_lstm import rnn_short_text_model as rstm
 from model.word2vec import word2vcmodel
+from model.rnn_lstm import rnn_seq2seq as rss
 from model import words_deal
 from data_load import DataLoad
+
 
 def RNN_train(wc):
 
@@ -105,14 +107,14 @@ def create_rnn_train():
     RNN_train(wc)
 
 
-
-def RNN_train_2(td, wc, re_train = False):
+def RNN_train_2(td, wc, re_train=False):
     conf = rnn_config.MediumConfig()
     conf.vocabulary_size = wc.vocabulary_size
     conf.hidden_size = params.embedding_size
-    conf.num_steps = 30
-    conf.max_max_epoch = 100
-    conf.max_epoch = 90
+    conf.batch_size = 50
+    conf.num_steps = 35
+    conf.max_max_epoch = 500
+    conf.max_epoch = 480
     conf.learning_rate = 0.005
     conf.lr_decay = 0.9
     conf.output_size = wc.label_size()
@@ -123,7 +125,7 @@ def RNN_train_2(td, wc, re_train = False):
     predict_conf.vocabulary_size = wc.vocabulary_size
     predict_conf.hidden_size = params.embedding_size
     predict_conf.batch_size = 1
-    predict_conf.num_steps = 30
+    predict_conf.num_steps = 35
     predict_conf.keep_prob = 1
     predict_conf.output_size = wc.label_size()
     print('output size', wc.label_size())
@@ -164,6 +166,69 @@ def RNN_train_2(td, wc, re_train = False):
             if params.xtep_rnn_model and (i % 10 == 0 or i == conf.max_max_epoch - 1):
                 print("Saving model to %s." % params.xtep_rnn_model)
                 sv.saver.save(session, params.xtep_rnn_model)
+
+        words = predict_model.run_predict(session, td, wc)
+        # print(''.join(wc.ids_to_words(words)).replace('END', '\n'))
+
+
+def RNN_train_seq2seq(td, wc, re_train=False):
+    conf = rnn_config.MediumConfig()
+    conf.vocabulary_size = wc.vocabulary_size
+    conf.hidden_size = params.embedding_size
+    conf.num_steps = 35
+    conf.max_max_epoch = 500
+    conf.max_epoch = 490
+    conf.learning_rate = 0.05
+    conf.lr_decay = 0.9
+    conf.output_size = wc.label_size()
+    conf.embedding_init = get_embedding_from_word2vec(params.xtep_words2vec_model)
+    #conf.set_embedding_random(wc.vocabulary_size, conf.hidden_size)
+
+    predict_conf = rnn_config.MediumConfig()
+    predict_conf.vocabulary_size = wc.vocabulary_size
+    predict_conf.hidden_size = params.embedding_size
+    predict_conf.batch_size = 1
+    predict_conf.num_steps = 35
+    predict_conf.keep_prob = 1
+    predict_conf.output_size = wc.label_size()
+    print('output size', wc.label_size())
+    predict_conf.embedding_init = conf.embedding_init
+
+    graph = tf.Graph()
+
+    with graph.as_default():
+        initializer = tf.random_uniform_initializer(-conf.init_scale,
+                                                    conf.init_scale)
+        with tf.name_scope('Train'):
+            with tf.variable_scope('Model', reuse=None, initializer=initializer):
+                train_model = rss.RNNSeq2Seq(conf, 'Train')
+
+        with tf.name_scope('Predict'):
+            with tf.variable_scope('Model', reuse=True, initializer=initializer):
+                predict_model = rss.RNNSeq2Seq(predict_conf, 'Predict_argmax')
+
+    sv = tf.train.Supervisor(graph=graph, logdir=params.xtep_rnn_seq2seq)
+    with sv.managed_session() as session:
+        if re_train:
+            check_point = tf.train.get_checkpoint_state(params.xtep_rnn_seq2seq)
+            sv.saver.restore(session, check_point.model_checkpoint_path)
+        # else:
+        #     tf.global_variables_initializer().run()
+
+        for i in range(conf.max_max_epoch):
+            lr_decay = conf.lr_decay ** max(i + 1 - conf.max_epoch, 0.0)
+            train_model.assign_lr(session, conf.learning_rate * lr_decay)
+
+            print("Epoch: %d Learning rate: %.5f" % (i + 1, session.run(train_model._lr)))
+            train_perplexity = train_model.train(session, td)
+
+            print("Epoch: %d Train Perplexity: %.5f" % (i + 1, train_perplexity))
+            # valid_perplexity = mvalid.run_epochs(session, valid_data)
+            # print("Epoch: %d Valid Perplexity: %.3f" % (i + 1, valid_perplexity))
+
+            if params.xtep_rnn_seq2seq and (i % 10 == 0 or i == conf.max_max_epoch - 1):
+                print("Saving model to %s." % params.xtep_rnn_seq2seq)
+                sv.saver.save(session, params.xtep_rnn_seq2seq)
 
         words = predict_model.run_predict(session, td, wc)
         # print(''.join(wc.ids_to_words(words)).replace('END', '\n'))

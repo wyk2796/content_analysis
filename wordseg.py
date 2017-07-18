@@ -10,7 +10,7 @@ import tools
 def _cut(line):
     words = []
     try:
-        words = list(jp.cut(line))
+        words = list(jb.cut(line))
     except Exception as e:
         print('cut line %s encounter an error %s' % (line, e))
     return words
@@ -90,11 +90,23 @@ class WordLibrary(object):
     def word_cut_with_sign(self, line):
         words = []
         if not self.is_empty_swlist():
-            [words.append(w.word) for w in _cut(line) if
-             isinstance(w.word, str) and w.word not in self.swlist]
+            [words.append(w) for w in _cut(line) if
+             isinstance(w, str) and w not in self.swlist]
         else:
-            [words.append(w.word) for w in _cut(line) if isinstance(w.word, str)]
+            [words.append(w) for w in _cut(line) if isinstance(w, str)]
         return words
+
+    def del_word_in_dict(self, word):
+        jb.del_word(word)
+
+    def adjust_freq(self, words):
+        jb.suggest_freq(words, tune=True)
+        # jb.add_word("价格", freq=300)
+        # jb.add_word("便宜", freq=300)
+        # jb.add_word("价格便宜", freq=100)
+        # jb.suggest_freq(("价格", "便宜"), tune=True)
+        # jb.del_word("价格便宜")
+        # print(list(jb.cut("价格便宜")))
 
 
 def initial_dict(dict_path, stop_word_path):

@@ -12,7 +12,7 @@ def _operation_single_file(path, func, *args, **kwds):
 
 def operation_file(path, func, filter_func=lambda x: True, *args, **kwds):
     if os.path.isdir(path):
-        [_operation_single_file(path + '\\' + f_name, func, *args, **kwds)
+        [_operation_single_file(path + f_name, func, *args, **kwds)
          for f_name in os.listdir(path) if filter_func(f_name)]
     else:
         _operation_single_file(path, func, *args, **kwds)
