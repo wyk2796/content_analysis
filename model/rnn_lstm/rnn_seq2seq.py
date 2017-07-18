@@ -11,6 +11,7 @@ class RNNSeq2Seq(object):
         self.config = config
         self.operation = operation
         self.input_placeholder = tf.placeholder(tf.int32, shape=[None, self.config.num_steps], name='RNN/Input')
+        self.decode_placeholder = tf.placeholder(tf.int32, shape=[None, self.config.num_steps], name='RNN/decode')
         self.labels_placeholder = tf.placeholder(tf.int32, shape=[None, self.config.num_steps], name='RNN/Target')
         self.cell = None
         self.embeddings = None
@@ -47,55 +48,27 @@ class RNNSeq2Seq(object):
                 return tf.contrib.rnn.DropoutWrapper(
                    self.lstm_cell(), output_keep_prob=self.config.keep_prob)
         self.cell = tf.contrib.rnn.MultiRNNCell([attn_cell() for _ in range(self.config.num_layers)], state_is_tuple=True)
-        self._initial_state = self.cell.zero_state(self.config.batch_size, dtype=tf.float32)
-
-    def get_embedding(self):
-        self.embeddings = tf.get_variable("embedding",
-                                          initializer=self.config.embedding_init,
-                                          dtype=tf.float32)
+        # self._initial_state = self.cell.zero_state(self.config.batch_size, dtype=tf.float32)
 
     def forward_computer(self):
+
         self.create_cell()
-        with tf.device("/cpu:0"):
-            self.get_embedding()
-            inputs = tf.nn.embedding_lookup(self.embeddings, self.input_placeholder)
-        if self.operation == 'Train' and self.config.keep_prob < 1:
-            inputs = tf.nn.dropout(inputs, self.config.keep_prob)
-
-        outputs = []
-        state = self._initial_state
-        with tf.variable_scope("RNN"):
-            for time_step in range(self.config.num_steps):
-                if time_step > 0:
-                    tf.get_variable_scope().reuse_variables()
-                (cell_output, state) = self.cell(inputs[:, time_step, :], state)
-                outputs.append(cell_output)
-        # output = tf.reshape(tf.stack(axis=1, values=outputs), [-1, self.config.hidden_size])
-
-        outdata = self.decode(outputs)
+        outdata = self.attention_model_all()
         self.logits = tf.reshape(tf.stack(axis=1, values=outdata), [-1, self.config.output_size])
-        # print(output.shape)
 
-        # softmax_w = tf.get_variable("softmax_w", [self.config.hidden_size, self.config.output_size], dtype=tf.float32)
-        # softmax_b = tf.get_variable("softmax_b", [self.config.output_size], dtype=tf.float32)
-        # self.logits = tf.matmul(outdata, softmax_w) + softmax_b
-        self._final_state = state
-        self.first_run = False
-
-    def decode(self, output):
+    def attention_model_all(self):
         with tf.variable_scope('decode_seq2seq'):
-            cell = tf.contrib.rnn.MultiRNNCell([self.lstm_cell() for _ in range(self.config.num_layers)],
-                                               state_is_tuple=True)
-            if self.first_run:
-                self.states_seq2seq = cell.zero_state(self.config.batch_size, dtype=tf.float32)
-            attention_states = tf.get_variable("attention_states", [1,
-                                                                    self.config.num_steps,
-                                                                    self.config.output_size])
-        (output_seq2seq, states_seq2seq) = tf.contrib.legacy_seq2seq.attention_decoder(output,
-                                                                                       self.states_seq2seq,
-                                                                                       attention_states,
-                                                                                       cell,
-                                                                                       output_size=self.config.output_size)
+            softmax_w = tf.get_variable("softmax_w", [self.config.hidden_size, self.config.output_size],
+                                        dtype=tf.float32)
+            softmax_b = tf.get_variable("softmax_b", [self.config.output_size], dtype=tf.float32)
+            output_seq2seq, states_seq2seq = tf.contrib.legacy_seq2seq.embedding_attention_seq2seq(self.input_placeholder,
+                                                                                                   self.decode_placeholder,
+                                                                                                   self.cell,
+                                                                                                   self.config.vocabulary_size,
+                                                                                                   self.config.output_size,
+                                                                                                   self.config.hidden_size,
+                                                                                                   output_projection=(softmax_w, softmax_b),
+                                                                                                   dtype=tf.float32)
         self.states_seq2seq = states_seq2seq
         return output_seq2seq
 
@@ -147,7 +120,6 @@ class RNNSeq2Seq(object):
         iters = 0
         costs = 0
         epoch_size = train_data.size() // self.config.batch_size
-        state = session.run(self._initial_state)
         fetch = {
             'train_op': self._train_op,
             "cost": self._cost,
@@ -155,15 +127,14 @@ class RNNSeq2Seq(object):
             "predict": self.predict,
         }
         count = [0, 0]
-        for step, (train_input, train_label) in enumerate(train_data.train_data_content(self.config.batch_size,
-                                                                                        self.config.num_steps)):
+        for step, (train_input, decode, train_label) in enumerate(train_data.train_data_attention_content(self.config.batch_size,
+                                                                                                  self.config.num_steps)):
             feed = {self.input_placeholder: train_input,
                     self.labels_placeholder: train_label,
-                    self._initial_state: state}
+                    self.decode_placeholder: decode}
             vals = session.run(
                 fetch, feed_dict=feed)
             costs += vals['cost']
-            state = vals['final_state']
             iters += self.config.num_steps
             if step % (epoch_size // 10) == 0:
                 print("%.3f perplexity: %.3f speed: %.0f wps" %

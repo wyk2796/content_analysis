@@ -8,6 +8,7 @@ class WordsContent(object):
 
     def __init__(self, max_volume):
         self.data = None
+        self.placeholder_char = '_PAD'
         self.unknown_char = '_UNK'
         self.end_char = '_END'
         self.start_char = '_GO'
@@ -29,7 +30,7 @@ class WordsContent(object):
     def create_data_content(self, input_data):
         self.words_ids.clear()
         self.ids_words.clear()
-        count = [[self.unknown_char, -1], [self.end_char, -1], [self.start_char, -1], [self.interval_char, -1]]
+        count = [[self.placeholder_char, -1], [self.unknown_char, -1], [self.end_char, -1], [self.start_char, -1], [self.interval_char, -1]]
         total_word_dict = pd.statistic_word_from_line(input_data)
         count.extend(collections.Counter(total_word_dict).most_common(self.vocabulary_size - 2))
         for word, frp in count:
@@ -55,7 +56,7 @@ class WordsContent(object):
     def create_label_content(self, input_data):
         self.label_words_ids.clear()
         self.label_ids_words.clear()
-        count = [[self.unknown_char, -1], [self.end_char, -1], [self.start_char, -1], [self.interval_char, -1]]
+        count = [[self.placeholder_char, -1], [self.unknown_char, -1], [self.end_char, -1], [self.start_char, -1], [self.interval_char, -1]]
         total_word_dict = pd.statistic_word_from_line(input_data)
         count.extend(collections.Counter(total_word_dict).most_common())
         for word, frp in count:
