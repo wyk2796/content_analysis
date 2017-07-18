@@ -282,7 +282,7 @@ if __name__ == '__main__':
     # label_data = [ws_dict.word_cut_with_sign(line) for line in train_data.get_content_label()]
     # wc.create_label_content(label_data)
     # wc.save_label_word_index(params.label_words_ids)
-    rt.RNN_train_2(train_data, wc, re_train=True)
+    # rt.RNN_train_2(train_data, wc, re_train=True)
     # for i, (train, label) in enumerate(train_data.train_data_content(20, 30)):
     #     print(i)
     #     print('train', train)
@@ -292,5 +292,5 @@ if __name__ == '__main__':
     #     print('train', train)
     #     print('label', label)
     #tb.train_bidirectional(train_data, params.xtep_rnn_emotion_model, re_Train=True)
-    #rt.RNN_train_seq2seq(train_data, wc, re_train=True)
+    rt.RNN_train_seq2seq(train_data, wc, re_train=True)
 

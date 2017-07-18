@@ -35,7 +35,7 @@ middle_table_path = 'E:\\temp\\middle_table'
 #--------------------------------------------------
 
 model = 'E:\\temp\model\\'
-train_data_dir = 'E:\MyWork\gitpython\content_analysis\data\\train_data'
+train_data_dir = 'E:\MyWork\gitpython\content_analysis\data\\train_data\\'
 
 vocabulary_size = 20000
 embedding_size = 500
