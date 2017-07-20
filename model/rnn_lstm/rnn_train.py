@@ -176,12 +176,13 @@ def RNN_train_seq2seq(td, wc, re_train=False):
     conf.vocabulary_size = wc.vocabulary_size
     conf.hidden_size = params.embedding_size
     conf.num_steps = 35
-    conf.max_max_epoch = 500
-    conf.max_epoch = 490
+    conf.max_max_epoch = 100
+    conf.max_epoch = 90
     conf.learning_rate = 0.05
     conf.lr_decay = 0.9
+    conf.batch_size = 50
     conf.output_size = wc.label_size()
-    conf.embedding_init = get_embedding_from_word2vec(params.xtep_words2vec_model)
+    # conf.embedding_init = get_embedding_from_word2vec(params.xtep_words2vec_model)
     #conf.set_embedding_random(wc.vocabulary_size, conf.hidden_size)
 
     predict_conf = rnn_config.MediumConfig()
@@ -192,7 +193,7 @@ def RNN_train_seq2seq(td, wc, re_train=False):
     predict_conf.keep_prob = 1
     predict_conf.output_size = wc.label_size()
     print('output size', wc.label_size())
-    predict_conf.embedding_init = conf.embedding_init
+    # predict_conf.embedding_init = conf.embedding_init
 
     graph = tf.Graph()
 
@@ -229,7 +230,7 @@ def RNN_train_seq2seq(td, wc, re_train=False):
             if params.xtep_rnn_seq2seq and (i % 10 == 0 or i == conf.max_max_epoch - 1):
                 print("Saving model to %s." % params.xtep_rnn_seq2seq)
                 sv.saver.save(session, params.xtep_rnn_seq2seq)
+                predict_model.run_predict(session, td, wc)
 
-        words = predict_model.run_predict(session, td, wc)
         # print(''.join(wc.ids_to_words(words)).replace('END', '\n'))
 

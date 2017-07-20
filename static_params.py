@@ -44,6 +44,7 @@ words2vec_model_path = model + 'words2vec\\'
 
 train_data_o_good = train_data_dir + 'good.txt'
 train_data_o_bad = train_data_dir + 'bad.txt'
+valid_data = train_data_dir + 'valid.txt'
 label_words_ids = model + 'words\label_words_ids.txt'
 
 predict_model_constant = model + 'constant\\rnn_model.pb'

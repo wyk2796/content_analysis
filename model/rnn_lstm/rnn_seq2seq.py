@@ -53,24 +53,26 @@ class RNNSeq2Seq(object):
     def forward_computer(self):
 
         self.create_cell()
-        outdata = self.attention_model_all()
-        self.logits = tf.reshape(tf.stack(axis=1, values=outdata), [-1, self.config.output_size])
+        self.attention_model_all()
+        # print(outdata)
+        # self.logits = tf.reshape(tf.stack(axis=1, values=outdata), [-1, self.config.output_size])
 
     def attention_model_all(self):
-        with tf.variable_scope('decode_seq2seq'):
-            softmax_w = tf.get_variable("softmax_w", [self.config.hidden_size, self.config.output_size],
-                                        dtype=tf.float32)
-            softmax_b = tf.get_variable("softmax_b", [self.config.output_size], dtype=tf.float32)
-            output_seq2seq, states_seq2seq = tf.contrib.legacy_seq2seq.embedding_attention_seq2seq(self.input_placeholder,
-                                                                                                   self.decode_placeholder,
-                                                                                                   self.cell,
-                                                                                                   self.config.vocabulary_size,
-                                                                                                   self.config.output_size,
-                                                                                                   self.config.hidden_size,
-                                                                                                   output_projection=(softmax_w, softmax_b),
-                                                                                                   dtype=tf.float32)
+        encode = []
+        decode = []
+        for i in range(self.config.num_steps):
+            encode.append(self.input_placeholder[:, i])
+            decode.append(self.decode_placeholder[:, i])
+        output_seq2seq, states_seq2seq = tf.contrib.legacy_seq2seq.embedding_attention_seq2seq(encode,
+                                                                                               decode,
+                                                                                               self.cell,
+                                                                                               self.config.vocabulary_size,
+                                                                                               self.config.output_size,
+                                                                                               self.config.hidden_size,
+                                                                                               dtype=tf.float32,
+                                                                                               feed_previous=True)
+        self.logits = tf.reshape(tf.stack(axis=1, values=output_seq2seq), [-1, self.config.output_size])
         self.states_seq2seq = states_seq2seq
-        return output_seq2seq
 
     def layer(self, output, i):
         name = 'layer_%d' % i
@@ -123,12 +125,49 @@ class RNNSeq2Seq(object):
         fetch = {
             'train_op': self._train_op,
             "cost": self._cost,
-            "final_state": self._final_state,
             "predict": self.predict,
         }
         count = [0, 0]
         for step, (train_input, decode, train_label) in enumerate(train_data.train_data_attention_content(self.config.batch_size,
-                                                                                                  self.config.num_steps)):
+                                                                                                          self.config.num_steps)):
+            feed = {self.input_placeholder: train_input,
+                    self.labels_placeholder: train_label,
+                    self.decode_placeholder: decode}
+            vals = session.run(
+                fetch, feed_dict=feed)
+            costs += vals['cost']
+            iters += self.config.num_steps
+            if step % (epoch_size // 10) == 0:
+                print("%.3f perplexity: %.3f speed: %.0f wps" %
+                      (step * 1.0 / epoch_size, np.exp(costs / iters),
+                       iters * self.config.batch_size / (time.time() - start_time)))
+
+            y_p = vals["predict"]
+            y_pp = np.reshape(y_p, newshape=(self.config.batch_size, self.config.num_steps))
+            for g in range(self.config.batch_size):
+                y_predict = [w for w in y_pp[g] if w != 0]
+                labelw = [w for w in train_label[g] if w != 0]
+                if list(y_predict) == list(labelw):
+                    count[0] += 1
+                else:
+                    count[1] += 1
+        print(count[0] + count[1], count[0] / (count[0] + count[1]), count[1] / (count[0] + count[1]))
+        return np.exp(costs / iters)
+
+
+    def valid(self, session, train_data):
+        start_time = time.time()
+        iters = 0
+        costs = 0
+        epoch_size = train_data.size() // self.config.batch_size
+        fetch = {
+            'train_op': self._train_op,
+            "cost": self._cost,
+            "predict": self.predict,
+        }
+        count = [0, 0]
+        for step, (train_input, decode, train_label) in enumerate(train_data.train_data_attention_content(self.config.batch_size,
+                                                                                                          self.config.num_steps)):
             feed = {self.input_placeholder: train_input,
                     self.labels_placeholder: train_label,
                     self.decode_placeholder: decode}
@@ -154,25 +193,23 @@ class RNNSeq2Seq(object):
         return np.exp(costs / iters)
 
     def run_predict(self, session, predict_data, wc):
-        state = session.run(self._initial_state)
         fetches = {
-            "predict": self.predict,
-            "final_state": self._final_state,
+            "predict": self.predict
         }
         predict = []
         count = [0, 0]
         out = open('E:\\temp\\model\\output.txt', encoding='utf-8', mode='w')
-        for step, (train_input, label) in enumerate(predict_data.train_data_content(self.config.batch_size,
-                                                                                    self.config.num_steps)):
-            feed = {self.input_placeholder: train_input,
-                    self._initial_state: state}
+        for step, (train_input, decode, label) in enumerate(predict_data.valid_data_attention_content(self.config.num_steps)):
+            start_sen = np.zeros(self.config.num_steps)
+            start_sen[0] = 3
+            feed = {self.input_placeholder: [train_input],
+                    self.decode_placeholder: [start_sen]}
             vals = session.run(
                 fetches, feed_dict=feed)
             y_p = vals["predict"]
             y_predict = [w for w in y_p if w != 0]
-            labelw = [w for w in label[0] if w != 0]
-            trainw = [w for w in train_input[0] if w != 0]
-            state = vals["final_state"]
+            labelw = [w for w in label if w != 0]
+            trainw = [w for w in train_input if w != 0]
             if list(y_predict) == list(labelw):
                 count[0] += 1
             else:

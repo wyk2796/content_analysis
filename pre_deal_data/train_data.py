@@ -250,6 +250,37 @@ class TrainData(object):
                 y_label[name] = l
             yield x, y_label
 
+    def valid_data_attention_content(self, step_num):
+        feature = []
+        labels_decode = []
+        target = []
+        data = list(self.valid_map.items())
+        for (key, v) in data:
+            lv = v.content_label
+            lv = lv.replace(',', wc.interval_char)
+            content = np.zeros(step_num, dtype=np.int32)
+            labeled = np.zeros(step_num, dtype=np.int32)
+            content_words = self.word_content.words_to_ids(self.word_seg.word_cut_with_sign(key))
+            ll_w = [wc.start_char]
+            ll_w.extend(self.word_seg.word_cut_with_sign(lv))
+            ll_w.append(wc.end_char)
+            label_words = self.word_content.label_words_to_ids(ll_w)
+            if len(content_words) < 35:
+                for k in range(len(content_words)):
+                    content[k] = content_words[k]
+                for t in range(len(label_words)):
+                    labeled[t] = label_words[t]
+            feature.append(content)
+            labels_decode.append(labeled)
+            t_list = list(labeled[1:])
+            t_list.append(0)
+            target.append(np.array(t_list, dtype=np.int32))
+        for i in range(len(feature)):
+            x = feature[i]
+            d = labels_decode[i]
+            y = target[i]
+            yield x, d, y
+
 
 class ContentLabel(object):
 
@@ -279,6 +310,7 @@ if __name__ == '__main__':
     train_data = TrainData(ws_dict, wc)
     train_data.add_train_data_from_file(params.train_data_o_good)
     train_data.add_train_data_from_file(params.train_data_o_bad)
+    train_data.add_valid_data_from_file(params.valid_data)
     # label_data = [ws_dict.word_cut_with_sign(line) for line in train_data.get_content_label()]
     # wc.create_label_content(label_data)
     # wc.save_label_word_index(params.label_words_ids)
