@@ -109,7 +109,7 @@ class TrainData(object):
             lv = lv.replace(',', wc.interval_char)
             content = np.zeros(step_num, dtype=np.int32)
             labeled = np.zeros(step_num, dtype=np.int32)
-            content_words = self.word_content.words_to_ids(self.word_seg.word_cut_with_sign(k))
+            content_words = self.word_content.words_to_ids(wc.conver_data_num(self.word_seg.word_cut_with_sign(k)))
             ll_w = [wc.start_char]
             ll_w.extend(self.word_seg.word_cut_with_sign(lv))
             ll_w.append(wc.end_char)
@@ -260,7 +260,7 @@ class TrainData(object):
             lv = lv.replace(',', wc.interval_char)
             content = np.zeros(step_num, dtype=np.int32)
             labeled = np.zeros(step_num, dtype=np.int32)
-            content_words = self.word_content.words_to_ids(self.word_seg.word_cut_with_sign(key))
+            content_words = self.word_content.words_to_ids(wc.conver_data_num(self.word_seg.word_cut_with_sign(key)))
             ll_w = [wc.start_char]
             ll_w.extend(self.word_seg.word_cut_with_sign(lv))
             ll_w.append(wc.end_char)
@@ -310,7 +310,7 @@ if __name__ == '__main__':
     train_data = TrainData(ws_dict, wc)
     train_data.add_train_data_from_file(params.train_data_o_good)
     train_data.add_train_data_from_file(params.train_data_o_bad)
-    train_data.add_valid_data_from_file(params.valid_data)
+    train_data.add_valid_data_from_file(params.train_data_o_bad)
     # label_data = [ws_dict.word_cut_with_sign(line) for line in train_data.get_content_label()]
     # wc.create_label_content(label_data)
     # wc.save_label_word_index(params.label_words_ids)

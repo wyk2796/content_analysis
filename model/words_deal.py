@@ -166,6 +166,14 @@ class WordsContent(object):
         new_line.append(self.end_char)
         return new_line
 
+    def conver_data_num(self, sen):
+        new_line = []
+        for w in sen:
+            if w != '':
+                w = self._conver_num_data(w)
+                new_line.append(w)
+        return new_line
+
 
 def create_content_data(data, vocabulary_size, save_path=None):
     wc = WordsContent(vocabulary_size)
